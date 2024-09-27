@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, PipelineStage, SortOrder, Types } from 'mongoose';
-import { ProductDocument } from './products.entity';
+import { Product, ProductDocument } from './products.entity';
 import {
     CreateProductsBackDto,
     FindAllProductsBackDto,
+    ProductWithSales30DaysDTO,
     UpdateProductsBackDto,
 } from 'src/backend/products-back/dto/products-back.dto';
 
@@ -13,7 +14,7 @@ export class ProductsService {
     constructor(
         @InjectModel('products', 'pt-epinium')
         readonly model: Model<ProductDocument>,
-    ) { }
+    ) {}
 
     /**
      * Create fake data
@@ -76,7 +77,7 @@ export class ProductsService {
             : undefined;
 
         return {
-            products: await products,
+            results: (await products) as Product[],
             total: await total,
         };
     }
@@ -99,7 +100,7 @@ export class ProductsService {
         const updatedProduct = await this.model.findByIdAndUpdate(
             id,
             { $set: product },
-            { runValidators: true }
+            { runValidators: true },
         );
 
         if (!updatedProduct) {
@@ -113,7 +114,7 @@ export class ProductsService {
         if (!id) throw new Error('Id is required');
         if (!Types.ObjectId.isValid(id)) throw new Error('Id is not valid');
 
-        const deletedProduct = await this.model.findOneAndDelete({ _id: id })
+        const deletedProduct = await this.model.findOneAndDelete({ _id: id });
 
         if (!deletedProduct) {
             throw new Error('Product not deleted');
@@ -130,19 +131,81 @@ export class ProductsService {
         sortDesc,
         totalProductCount,
     }: FindAllProductsBackDto) {
-        // #TODO
-
         const match: FilterQuery<ProductDocument> = {};
+        if (search) {
+            match.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } },
+            ];
+        }
 
-        const pipeline: PipelineStage[] = [{ $match: match }];
+        const last30Days = new Date();
+        last30Days.setDate(last30Days.getDate() - 30);
 
-        const products = this.model.aggregate(pipeline);
-        const total = totalProductCount
-            ? this.model.countDocuments(match)
-            : undefined;
+        const sort: Record<string, 1 | -1> = {};
+
+        if (sortBy?.length && sortDesc?.length) {
+            sortBy.forEach((v, i) => {
+                sort[v] = sortDesc[i] ? -1 : 1;
+            });
+        }
+        if (itemsPerPage < 1) itemsPerPage = 10;
+
+        const pipeline: PipelineStage[] = [
+            { $match: match },
+            { $sort: sort },
+            { $skip: +itemsPerPage * (+page - 1) },
+            { $limit: +itemsPerPage },
+            {
+                $lookup: {
+                    from: 'sales',
+                    localField: '_id',
+                    foreignField: 'product',
+                    as: 'sales',
+                },
+            },
+            {
+                $addFields: {
+                    sales: {
+                        $filter: {
+                            input: '$sales',
+                            as: 'sale',
+                            cond: {
+                                $gte: [
+                                    '$$sale.date',
+                                    new Date(
+                                        new Date().setDate(
+                                            new Date().getDate() - 30,
+                                        ),
+                                    ),
+                                ],
+                            },
+                        },
+                    },
+                    sales30: {
+                        $size: '$sales',
+                    },
+                    units30: { $sum: '$sales.units' },
+                },
+            },
+            {
+                $project: {
+                    EAN: 1,
+                    name: 1,
+                    description: 1,
+                    price: 1,
+                    stock: 1,
+                    sales30: 1,
+                    units30: 1,
+                },
+            },
+        ];
+
+        const products = await this.model.aggregate(pipeline);
+        const total = totalProductCount ? products.length : undefined;
 
         return {
-            products: await products,
+            results: products as ProductWithSales30DaysDTO[],
             total: await total,
         };
     }

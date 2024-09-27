@@ -8,7 +8,7 @@ import {
 
 @Injectable()
 export class ProductsBackService {
-    constructor(readonly productsService: ProductsService) {}
+    constructor(readonly productsService: ProductsService) { }
 
     create(createProductsBackDto: CreateProductsBackDto) {
         return this.productsService.createProduct(createProductsBackDto);
@@ -23,11 +23,11 @@ export class ProductsBackService {
     }
 
     update(id: string, updateProductsBackDto: UpdateProductsBackDto) {
-        // #TODO
+        return this.productsService.updateProduct(id, updateProductsBackDto);
     }
 
     remove(id: string) {
-        // #TODO
+        return this.productsService.deleteProduct(id);
     }
 
     productsWith30daysSales(findAllProductsBackDto: FindAllProductsBackDto) {

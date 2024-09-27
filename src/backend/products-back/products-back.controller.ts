@@ -6,6 +6,7 @@ import {
     Patch,
     Param,
     Delete,
+    HttpCode,
 } from '@nestjs/common';
 import { ProductsBackService } from './products-back.service';
 import {
@@ -27,6 +28,13 @@ export class ProductsBackController {
     }
 
     @Post('findAll')
+    @HttpCode(200)
+    @ApiResponse({
+        status: 200,
+        description: 'Get all Products from db',
+        type: ProductWithSales30DaysDTO,
+        isArray: false,
+    })
     @ApiBody({
         type: FindAllProductsBackDto,
         examples: {
@@ -102,6 +110,7 @@ export class ProductsBackController {
         },
     })
     @Post('productsWith30daysSales')
+    @HttpCode(200)
     productsWith30daysSales(
         @Body() findAllProductsBackDto: FindAllProductsBackDto,
     ) {

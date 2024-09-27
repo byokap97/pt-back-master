@@ -3,15 +3,15 @@ import { Types } from 'mongoose';
 
 export enum SalesChannel {
     FBA = 'FBA',
-    FBM = 'FBM'
-};
+    FBM = 'FBM',
+}
 
 export class Sale {
-    amount: string;
+    amount: number;
     units: number;
     channel: SalesChannel;
     product: Types.ObjectId;
-
+    date: Date;
     _id: Types.ObjectId | string;
     createdAt: Date | string;
     updatedAt: Date | string;

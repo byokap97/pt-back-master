@@ -1,5 +1,5 @@
-import { Sale } from "@api/sales/sales.entity";
-import { PartialType } from "@nestjs/swagger";
+import { Sale } from '@api/sales/sales.entity';
+import { PartialType } from '@nestjs/swagger';
 
 export class FindAllSalesBackDto {
     page?: number;
@@ -10,6 +10,12 @@ export class FindAllSalesBackDto {
     totalSalesCount?: boolean;
 }
 
+export class FindAllSalesByChannelBackDto {
+    startDate: Date;
+    endDate: Date;
+    sortDesc?: boolean[];
+}
+
 export class CreateSalesBackDto {
     amount: Sale['amount'];
     units: Sale['units'];
@@ -17,7 +23,7 @@ export class CreateSalesBackDto {
     product: Sale['product'];
 }
 
-export class UpdateSalesBackDto extends PartialType(CreateSalesBackDto) { }
+export class UpdateSalesBackDto extends PartialType(CreateSalesBackDto) {}
 
 export class SalesByChannelDTO {
     channel: string;
