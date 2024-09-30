@@ -10,9 +10,12 @@ import {
 } from '@nestjs/common';
 import { ProductsBackService } from './products-back.service';
 import {
+    CreatedFakeProductsDataDto,
     CreateProductsBackDto,
     FindAllProductsBackDto,
-    ProductWithSales30DaysDTO,
+    FindAllProductsDto,
+    ProductDto,
+    ProductWithSales30DaysDto,
     UpdateProductsBackDto,
 } from './dto/products-back.dto';
 import { ApiBody, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -23,18 +26,30 @@ export class ProductsBackController {
     constructor(private readonly productsBackService: ProductsBackService) {}
 
     @Post('create')
+    @ApiBody({
+        type: CreateProductsBackDto,
+        examples: {
+            example1: {
+                value: {
+                    EAN: '1234567890001',
+                    name: 'Test Product Name 1',
+                    description: 'Test Product Description',
+                    price: 169,
+                    stock: 796,
+                },
+            },
+        },
+    })
+    @ApiResponse({
+        type: ProductDto,
+        description: 'Product created',
+        status: 201,
+    })
     create(@Body() createProductsBackDto: CreateProductsBackDto) {
         return this.productsBackService.create(createProductsBackDto);
     }
 
     @Post('findAll')
-    @HttpCode(200)
-    @ApiResponse({
-        status: 200,
-        description: 'Get all Products from db',
-        type: ProductWithSales30DaysDTO,
-        isArray: false,
-    })
     @ApiBody({
         type: FindAllProductsBackDto,
         examples: {
@@ -49,6 +64,12 @@ export class ProductsBackController {
                 },
             },
         },
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Get all Products from db',
+        type: FindAllProductsDto,
+        isArray: false,
     })
     findAll(@Body() findAllProductsBackDto: FindAllProductsBackDto) {
         if (
@@ -83,6 +104,12 @@ export class ProductsBackController {
     }
 
     @Post('createFakeData')
+    @ApiResponse({
+        status: 201,
+        description: 'Db seeded',
+        type: CreatedFakeProductsDataDto,
+        isArray: true,
+    })
     createFakeData() {
         return this.productsBackService.createFakeData();
     }
@@ -90,7 +117,7 @@ export class ProductsBackController {
     @ApiResponse({
         status: 200,
         description: 'Get products with 30 days sales',
-        type: ProductWithSales30DaysDTO,
+        type: ProductWithSales30DaysDto,
         isArray: true,
     })
     @ApiBody({

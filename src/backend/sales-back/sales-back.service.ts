@@ -1,37 +1,47 @@
 import { SalesService } from '@api/sales/sales.service';
 import { Injectable } from '@nestjs/common';
-import { CreateSalesBackDto, FindAllSalesBackDto, FindAllSalesByChannelBackDto, UpdateSalesBackDto } from './dto/sales-back.dto';
+import {
+    CreateSalesBackDto,
+    DeleteByIdDto,
+    FindAllSalesBackDto,
+    SalesByChannelBackDto,
+    FindAllSalesDto,
+    SalesDto,
+    UpdateSalesBackDto,
+    CreatedFakeSalesDataDto,
+} from './dto/sales-back.dto';
 
 @Injectable()
 export class SalesBackService {
-
     constructor(readonly service: SalesService) {}
 
-    create(createSalesBackDto: CreateSalesBackDto) {
-        return this.service.createSale(createSalesBackDto);
+    create(createSalesBackDto: CreateSalesBackDto): Promise<SalesDto> {
+        return this.service.create(createSalesBackDto);
     }
 
-    async findAll(findAllSalesBackDto: FindAllSalesBackDto) {
+    async findAll(
+        findAllSalesBackDto: FindAllSalesBackDto,
+    ): Promise<FindAllSalesDto> {
         return this.service.findAll(findAllSalesBackDto);
     }
 
-    findOne(id: string) {
+    findOne(id: string): Promise<SalesDto> {
         return this.service.findById(id);
     }
 
-    update(id: string, updateSalesBackDto: UpdateSalesBackDto) {
+    update(id: string, updateSalesBackDto: UpdateSalesBackDto): Promise<SalesDto> {
         return this.service.updateSale(id, updateSalesBackDto);
     }
 
-    remove(id: string) {
+    remove(id: string): Promise<DeleteByIdDto> {
         return this.service.deleteSale(id);
     }
 
-    createFakeData() {
+    createFakeData(): Promise<CreatedFakeSalesDataDto> {
         return this.service.createFakeData();
     }
 
-    salesByChannel(findAllSalesByChannelBackDto: FindAllSalesByChannelBackDto) {
-        return this.service.salesByChannel(findAllSalesByChannelBackDto);
+    salesByChannel(salesByChannelBackDto: SalesByChannelBackDto) {
+        return this.service.salesByChannel(salesByChannelBackDto);
     }
 }

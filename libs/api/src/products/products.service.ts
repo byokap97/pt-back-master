@@ -1,13 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, PipelineStage, SortOrder, Types } from 'mongoose';
 import { Product, ProductDocument } from './products.entity';
 import {
+    CreatedFakeProductsDataDto,
     CreateProductsBackDto,
     FindAllProductsBackDto,
-    ProductWithSales30DaysDTO,
+    FindAllProductsDto,
+    ProductDto,
+    ProductWithSales30DaysDto,
     UpdateProductsBackDto,
 } from 'src/backend/products-back/dto/products-back.dto';
+import { idValidator } from '@api/utils/validators';
 
 @Injectable()
 export class ProductsService {
@@ -21,21 +25,27 @@ export class ProductsService {
      *
      * Function to delete all products and create 100 new products
      */
-    async createFakeData() {
+    async createFakeData(): Promise<CreatedFakeProductsDataDto> {
         await this.model.deleteMany({});
-        const createPromises: Promise<any>[] = [];
+        const createModels: CreateProductsBackDto[] = [];
         for (let i = 0; i < 100; i++) {
-            createPromises.push(
-                this.model.create({
-                    EAN: (1234567890000 + i).toFixed(0),
-                    name: `Test Product Name ${i}`,
-                    description: 'Test Product Description',
-                    price: Math.floor(Math.random() * 1000),
-                    stock: Math.floor(Math.random() * 1000),
-                }),
-            );
+            const model: CreateProductsBackDto = {
+                EAN: (1234567890000 + i).toFixed(0),
+                name: `Test Product Name ${i}`,
+                description: 'Test Product Description',
+                price: Math.floor(Math.random() * 1000),
+                stock: Math.floor(Math.random() * 1000),
+            };
+            createModels.push(model);
         }
-        await Promise.all(createPromises);
+        try {
+            const insert = await this.model.insertMany(createModels);
+            return {
+                total: insert.length,
+            };
+        } catch (error) {
+            throw new InternalServerErrorException('Failure to seed Products');
+        }
     }
 
     async findAll({
@@ -45,7 +55,7 @@ export class ProductsService {
         sortBy,
         sortDesc,
         totalProductCount,
-    }: FindAllProductsBackDto) {
+    }: FindAllProductsBackDto): Promise<FindAllProductsDto> {
         const query: FilterQuery<ProductDocument> = {};
 
         if (search) {
@@ -63,7 +73,7 @@ export class ProductsService {
             });
         }
 
-        if (page < 1) page = 1;
+        if (!page || page < 1) page = 1;
         if (itemsPerPage < 1) itemsPerPage = 10;
 
         const products = this.model.find(query, null, {
@@ -77,25 +87,27 @@ export class ProductsService {
             : undefined;
 
         return {
-            results: (await products) as Product[],
+            results: (await products) as any,
             total: await total,
         };
     }
 
     async findProductById(id: string) {
-        if (!id) throw new Error('Id is required');
-        if (!Types.ObjectId.isValid(id)) throw new Error('Id is not valid');
+        idValidator(id);
 
         return this.model.findById(id);
     }
 
-    async createProduct(product: CreateProductsBackDto) {
-        return this.model.create(product);
+    async createProduct(product: CreateProductsBackDto): Promise<any> {
+        try {
+            return this.model.create(product);
+        } catch (error) {
+            throw new InternalServerErrorException(error.message);
+        }
     }
 
     async updateProduct(id: string, product: UpdateProductsBackDto) {
-        if (!id) throw new Error('Id is required');
-        if (!Types.ObjectId.isValid(id)) throw new Error('Id is not valid');
+        idValidator(id);
 
         const updatedProduct = await this.model.findByIdAndUpdate(
             id,
@@ -111,8 +123,7 @@ export class ProductsService {
     }
 
     async deleteProduct(id: string) {
-        if (!id) throw new Error('Id is required');
-        if (!Types.ObjectId.isValid(id)) throw new Error('Id is not valid');
+        idValidator(id);
 
         const deletedProduct = await this.model.findOneAndDelete({ _id: id });
 
@@ -205,7 +216,7 @@ export class ProductsService {
         const total = totalProductCount ? products.length : undefined;
 
         return {
-            results: products as ProductWithSales30DaysDTO[],
+            results: products as ProductWithSales30DaysDto[],
             total: await total,
         };
     }

@@ -10,6 +10,10 @@ export class FindAllProductsBackDto {
     totalProductCount?: boolean;
 }
 
+export class FindAllProductsDto {
+    results: ProductDto[];
+    total: number;
+}
 export class CreateProductsBackDto {
     EAN: Product['EAN'];
     name: Product['name'];
@@ -20,7 +24,7 @@ export class CreateProductsBackDto {
 
 export class UpdateProductsBackDto extends PartialType(CreateProductsBackDto) {}
 
-export class ProductWithSales30DaysDTO {
+export class ProductWithSales30DaysDto {
     EAN: string;
     name: string;
     description: string;
@@ -28,4 +32,15 @@ export class ProductWithSales30DaysDTO {
     stock: number;
     sales30: number;
     units30: number;
+}
+
+export class ProductDto extends PartialType(Product) {
+    _id?: string;
+    createdAt?: string;
+    updatedAt?: string;
+    id: string;
+}
+
+export class CreatedFakeProductsDataDto {
+    total: number;
 }

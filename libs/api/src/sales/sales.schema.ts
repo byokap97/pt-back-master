@@ -21,3 +21,15 @@ export const SalesSchema = new Schema<SalesDocument>(
         timestamps: true,
     },
 );
+
+SalesSchema.set('toObject', { virtuals: true, versionKey: false });
+SalesSchema.set('toJSON', {
+    virtuals: true,
+    versionKey: false,
+    transform: (doc, ret) => {
+        ret.id = ret._id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+    },
+});

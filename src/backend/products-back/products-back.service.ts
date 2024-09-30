@@ -1,16 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { ProductsService } from '@api/products/products.service';
 import {
+    CreatedFakeProductsDataDto,
     CreateProductsBackDto,
     FindAllProductsBackDto,
+    ProductDto,
     UpdateProductsBackDto,
 } from './dto/products-back.dto';
 
 @Injectable()
 export class ProductsBackService {
-    constructor(readonly productsService: ProductsService) { }
+    constructor(readonly productsService: ProductsService) {}
 
-    create(createProductsBackDto: CreateProductsBackDto) {
+    create(createProductsBackDto: CreateProductsBackDto): Promise<ProductDto> {
         return this.productsService.createProduct(createProductsBackDto);
     }
 
@@ -36,7 +38,7 @@ export class ProductsBackService {
         );
     }
 
-    createFakeData() {
+    createFakeData(): Promise<CreatedFakeProductsDataDto> {
         return this.productsService.createFakeData();
     }
 }

@@ -1,15 +1,33 @@
-import { Injectable } from '@nestjs/common';
+import {
+    BadGatewayException,
+    BadRequestException,
+    Injectable,
+    InternalServerErrorException,
+    NotFoundException,
+} from '@nestjs/common';
 import { SalesChannel, SalesDocument } from './sales.entity';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model, PipelineStage, SortOrder, Types } from 'mongoose';
+import {
+    FilterQuery,
+    Model,
+    ObjectId,
+    PipelineStage,
+    SortOrder,
+    Types,
+} from 'mongoose';
 import {
     CreateSalesBackDto,
+    DeleteByIdDto,
     FindAllSalesBackDto,
-    FindAllSalesByChannelBackDto,
-    SalesByChannelDTO,
+    SalesByChannelBackDto,
+    FindAllSalesDto,
+    SalesDto,
     UpdateSalesBackDto,
+    SalesByChannelDto,
+    CreatedFakeSalesDataDto,
 } from 'src/backend/sales-back/dto/sales-back.dto';
 import { ProductDocument } from '@api/products/products.entity';
+import { idValidator } from '@api/utils/validators';
 
 @Injectable()
 export class SalesService {
@@ -20,8 +38,13 @@ export class SalesService {
         readonly productsModel: Model<ProductDocument>,
     ) {}
 
-    async createSale(sale: CreateSalesBackDto) {
-        return this.model.create(sale);
+    async create(sale: CreateSalesBackDto): Promise<any> {
+        idValidator(sale.product);
+        try {
+            return this.model.create(sale);
+        } catch (error) {
+            throw new InternalServerErrorException(error.message);
+        }
     }
 
     async findAll({
@@ -31,14 +54,14 @@ export class SalesService {
         sortBy,
         sortDesc,
         totalSalesCount,
-    }: FindAllSalesBackDto) {
+    }: FindAllSalesBackDto): Promise<FindAllSalesDto> {
         const query: FilterQuery<SalesDocument> = {};
 
         if (search) {
             query.$or = [{ channel: { $regex: search, $options: 'i' } }];
         }
 
-        const sort: { [k: string]: SortOrder } = {};
+        const sort: { [k: string]: 1 | -1 } = {};
 
         if (sortBy?.length && sortDesc?.length) {
             sortBy.forEach((v, i) => {
@@ -46,65 +69,95 @@ export class SalesService {
             });
         }
 
-        if (page < 1) page = 1;
+        if (!page || page < 1) page = 1;
         if (itemsPerPage < 1) itemsPerPage = 10;
 
-        const sales = this.model.find(query, null, {
-            sort,
-            skip: +itemsPerPage * (+page - 1),
-            limit: +itemsPerPage,
-        });
-
-        const total = totalSalesCount
-            ? this.model.countDocuments(query)
-            : undefined;
-
-        return {
-            sales: await sales,
-            total: await total,
-        };
-    }
-
-    async findById(id: string) {
-        if (!id) throw new Error('Id is required');
-        if (!Types.ObjectId.isValid(id)) throw new Error('Id is not valid');
-
-        return this.model.findById(id);
-    }
-
-    async updateSale(id: string, updateSalesBackDto: UpdateSalesBackDto) {
-        if (!id) throw new Error('Id is required');
-        if (!Types.ObjectId.isValid(id)) throw new Error('Id is not valid');
-
-        const updateSale = await this.model.findByIdAndUpdate(
-            id,
-            { $set: updateSalesBackDto },
-            { runValidators: true },
-        );
-
-        if (!updateSale) {
-            throw new Error('Sale not updated');
+        const pipeline: PipelineStage[] = [
+            { $match: query },
+            { $skip: +itemsPerPage * (+page - 1) },
+            { $limit: +itemsPerPage },
+            {
+                $project: {
+                    amount: 1,
+                    units: 1,
+                    channel: 1,
+                    product: 1,
+                    date: 1,
+                    _id: 0,
+                    id: '$_id',
+                    createdAt: 1,
+                    updatedAt: 1,
+                },
+            },
+        ];
+        if (Object.keys(sort).length) {
+            pipeline.push({
+                $sort: sort,
+            });
         }
+        let totalSales;
+        try {
+            if (totalSalesCount) {
+                totalSales = await this.model.countDocuments(query);
+            }
+            const result = await this.model.aggregate(pipeline);
 
-        return updateSale;
+            return {
+                sales: result || [],
+                total: totalSalesCount ? totalSales : undefined,
+            };
+        } catch (error) {
+            throw new InternalServerErrorException('Failure to search');
+        }
     }
 
-    async deleteSale(id: string) {
-        if (!id) throw new Error('Id is required');
-        if (!Types.ObjectId.isValid(id)) throw new Error('Id is not valid');
+    async findById(id: string): Promise<SalesDto> {
+        idValidator(id);
+        try {
+            return this.model.findById(id);
+        } catch (error) {
+            throw new InternalServerErrorException('Fallo al buscar por Id');
+        }
+    }
+
+    async updateSale(
+        id: string,
+        updateSalesBackDto: UpdateSalesBackDto,
+    ): Promise<any> {
+        idValidator(id);
+
+        try {
+            const updateSale = await this.model.findByIdAndUpdate(
+                id,
+                { $set: updateSalesBackDto },
+                { runValidators: true, new: true },
+            );
+
+            if (!updateSale) {
+                throw new Error('Sale not updated');
+            }
+
+            return updateSale;
+        } catch (error) {
+            throw new InternalServerErrorException(error.message);
+        }
+    }
+
+    async deleteSale(id: string): Promise<DeleteByIdDto> {
+        idValidator(id);
 
         const deletedSale = await this.model.findOneAndDelete({ _id: id });
 
         if (!deletedSale) {
-            throw new Error('Sale not deleted');
+            throw new NotFoundException('Sale not deleted');
         }
 
-        return deletedSale;
+        return { id: deletedSale.id };
     }
 
-    async createFakeData() {
+    async createFakeData(): Promise<CreatedFakeSalesDataDto> {
         await this.model.deleteMany({});
-        const createPromises: Promise<any>[] = [];
+        const createModels: CreateSalesBackDto[] = [];
 
         const products = await this.productsModel.find({});
 
@@ -112,28 +165,38 @@ export class SalesService {
 
         for (let d = 0; d < 90; ++d) {
             products.forEach((product) => {
-                const model = {
+                const date = new Date(
+                    new Date(today).setDate(today.getDay() - d),
+                );
+                const model: CreateSalesBackDto = {
                     units: Math.floor(Math.random() * (10 - 1 + 1) + 1),
-                    product: product['_id'],
+                    product: product['_id'].toString(),
                     amount: Math.floor(Math.random() * (100 - 1 + 1) + 1),
-                    date: new Date(today).setDate(today.getDay() - d),
+                    date: date,
                     channel: SalesChannel.FBA,
                 };
-                createPromises.push(
-                    this.model.create(model),
-                    this.model.create({ ...model, channel: SalesChannel.FBM }),
-                );
+                createModels.push(model, {
+                    ...model,
+                    channel: SalesChannel.FBM,
+                });
             });
         }
 
-        await Promise.all(createPromises);
+        try {
+            const insert = await this.model.insertMany(createModels);
+            return {
+                total: insert.length,
+            };
+        } catch (error) {
+            throw new InternalServerErrorException('Failure to seed sales');
+        }
     }
 
     async salesByChannel({
         startDate,
         endDate,
         sortDesc,
-    }: FindAllSalesByChannelBackDto) {
+    }: SalesByChannelBackDto): Promise<SalesByChannelDto[]> {
         const start = new Date(startDate);
         const end = new Date(endDate);
         const monthsDiff =
@@ -205,14 +268,16 @@ export class SalesService {
                 },
             },
         ];
-        const sales = await this.model.aggregate(pipeline);
+        try {
+            const sales = await this.model.aggregate(pipeline);
 
-        if (!sales) {
-            throw new Error('Sales not found');
+            if (!sales) {
+                throw new Error('Sales not found');
+            }
+
+            return sales as SalesByChannelDto[];
+        } catch (error) {
+            throw new InternalServerErrorException('Failure to find sales');
         }
-
-        return {
-            results: sales,
-        };
     }
 }

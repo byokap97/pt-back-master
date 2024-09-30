@@ -21,8 +21,4 @@ export interface SalesDocument extends Sale, Document {
     createdAt: Date;
     updatedAt: Date;
 }
-export class SalesDto extends PartialType(Sale) {
-    _id?: string;
-    createdAt?: string;
-    updatedAt?: string;
-}
+
