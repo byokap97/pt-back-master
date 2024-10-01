@@ -1,4 +1,4 @@
-import { Model, Schema } from 'mongoose';
+import { Schema } from 'mongoose';
 import { ProductDocument } from './products.entity';
 
 export const ProductsSchema = new Schema<ProductDocument>(
@@ -13,3 +13,15 @@ export const ProductsSchema = new Schema<ProductDocument>(
         timestamps: true,
     },
 );
+
+ProductsSchema.set('toObject', { virtuals: true, versionKey: false });
+ProductsSchema.set('toJSON', {
+    virtuals: true,
+    versionKey: false,
+    transform: (doc, ret) => {
+        ret.id = ret._id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+    },
+});

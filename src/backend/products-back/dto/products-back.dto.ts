@@ -1,5 +1,6 @@
 import { Product } from '@api/products/products.entity';
-import { PartialType } from '@nestjs/swagger';
+import { FindAllDto } from '@backend/utils/dto/utils.dto';
+import { OmitType, PartialType } from '@nestjs/swagger';
 
 export class FindAllProductsBackDto {
     page?: number;
@@ -8,6 +9,10 @@ export class FindAllProductsBackDto {
     sortDesc?: boolean[];
     search?: string;
     totalProductCount?: boolean;
+}
+
+export class FindAllProductsDto extends FindAllDto<ProductDto> {
+    results: ProductDto[];
 }
 
 export class CreateProductsBackDto {
@@ -20,7 +25,11 @@ export class CreateProductsBackDto {
 
 export class UpdateProductsBackDto extends PartialType(CreateProductsBackDto) {}
 
-export class ProductWithSales30DaysDTO {
+export class FindProductWith30DaysSalesDto extends FindAllDto<ProductWithSales30DaysDto> {
+    results: ProductWithSales30DaysDto[];
+}
+
+export class ProductWithSales30DaysDto {
     EAN: string;
     name: string;
     description: string;
@@ -28,4 +37,13 @@ export class ProductWithSales30DaysDTO {
     stock: number;
     sales30: number;
     units30: number;
+}
+
+export class ProductDto extends PartialType(OmitType(Product, ['_id'])) {
+    createdAt?: string;
+    updatedAt?: string;
+    id: string;
+}
+export class CreatedFakeProductsDataDto {
+    total: number;
 }

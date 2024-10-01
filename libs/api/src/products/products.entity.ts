@@ -1,4 +1,3 @@
-import { PartialType } from '@nestjs/swagger';
 import { Types } from 'mongoose';
 
 export class Product {
@@ -16,9 +15,4 @@ export interface ProductDocument extends Product, Document {
     _id: Types.ObjectId;
     createdAt: Date;
     updatedAt: Date;
-}
-export class ProductDto extends PartialType(Product) {
-    _id?: string;
-    createdAt?: string;
-    updatedAt?: string;
 }

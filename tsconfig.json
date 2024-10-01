@@ -19,7 +19,9 @@
         "noFallthroughCasesInSwitch": false,
         "paths": {
             "@api": ["libs/api/src"],
-            "@api/*": ["libs/api/src/*"]
+            "@api/*": ["libs/api/src/*"],
+            "@backend": ["src/backend"],
+            "@backend/*": ["src/backend/*"]
         }
     }
 }

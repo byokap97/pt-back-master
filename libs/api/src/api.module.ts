@@ -9,9 +9,9 @@ import { ProductsModule } from './products/products.module';
         MongooseModule.forRootAsync({
             imports: [ConfigModule],
             connectionName: 'pt-epinium',
-            useFactory: async (configService: ConfigService) => {
+            useFactory: async () => {
                 return {
-                    uri: configService.get('DB_CONNECTION_URI'),
+                    uri: 'mongodb://127.0.0.1:27017/pt-epinium',
                     appname: 'PT-Epinium',
                     useUnifiedTopology: true,
                     useNewUrlParser: true,

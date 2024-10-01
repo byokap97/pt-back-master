@@ -6,15 +6,20 @@ import {
     Patch,
     Param,
     Delete,
+    HttpCode,
 } from '@nestjs/common';
 import { ProductsBackService } from './products-back.service';
 import {
+    CreatedFakeProductsDataDto,
     CreateProductsBackDto,
     FindAllProductsBackDto,
-    ProductWithSales30DaysDTO,
+    FindAllProductsDto,
+    ProductDto,
+    ProductWithSales30DaysDto,
     UpdateProductsBackDto,
 } from './dto/products-back.dto';
-import { ApiBody, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { DeleteByIdDto, ErrorResponseDto } from '../utils/dto/utils.dto';
 
 @ApiTags('Products Back')
 @Controller('products-back')
@@ -22,11 +27,38 @@ export class ProductsBackController {
     constructor(private readonly productsBackService: ProductsBackService) {}
 
     @Post('create')
+    @ApiOperation({ summary: 'Create a new Product' })
+    @ApiBody({
+        type: CreateProductsBackDto,
+        examples: {
+            example1: {
+                value: {
+                    EAN: '1234567890001',
+                    name: 'Test Product Name 1',
+                    description: 'Test Product Description',
+                    price: 169,
+                    stock: 796,
+                },
+            },
+        },
+    })
+    @ApiResponse({
+        type: ProductDto,
+        description: 'Product created',
+        status: 201,
+    })
+    @ApiResponse({
+        status: 500,
+        description: 'Internal Server Error',
+        type: ErrorResponseDto,
+    })
     create(@Body() createProductsBackDto: CreateProductsBackDto) {
         return this.productsBackService.create(createProductsBackDto);
     }
 
     @Post('findAll')
+    @ApiOperation({ summary: 'Find All Products ordered' })
+    @HttpCode(200)
     @ApiBody({
         type: FindAllProductsBackDto,
         examples: {
@@ -41,6 +73,17 @@ export class ProductsBackController {
                 },
             },
         },
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Get all Products from db',
+        type: FindAllProductsDto,
+        isArray: false,
+    })
+    @ApiResponse({
+        status: 500,
+        description: 'Internal Server Error',
+        type: ErrorResponseDto,
     })
     findAll(@Body() findAllProductsBackDto: FindAllProductsBackDto) {
         if (
@@ -57,11 +100,56 @@ export class ProductsBackController {
     }
 
     @Get(':id')
+    @ApiOperation({ summary: 'Find a product by id' })
+    @ApiResponse({
+        status: 200,
+        type: ProductDto,
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Bad Request',
+        type: ErrorResponseDto,
+    })
+    @ApiResponse({
+        status: 500,
+        description: 'Internal Server Error',
+        type: ErrorResponseDto,
+    })
     findOne(@Param('id') id: string) {
         return this.productsBackService.findOne(id);
     }
 
     @Patch(':id')
+    @ApiOperation({ summary: 'Update a product by id' })
+    @ApiBody({
+        type: UpdateProductsBackDto,
+        examples: {
+            example1: {
+                value: {
+                    EAN: '12345678900001',
+                    name: `Test Product Name `,
+                    description: 'Test Product Description',
+                    price: 100,
+                    stock: 100,
+                },
+            },
+        },
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Product Updated',
+        type: ProductDto,
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Bad Request',
+        type: ErrorResponseDto,
+    })
+    @ApiResponse({
+        status: 500,
+        description: 'Internal Server Error',
+        type: ErrorResponseDto,
+    })
     update(
         @Param('id') id: string,
         @Body() updateProductsBackDto: UpdateProductsBackDto,
@@ -70,21 +158,51 @@ export class ProductsBackController {
     }
 
     @Delete(':id')
+    @HttpCode(204)
+    @ApiOperation({ summary: 'Delete a Product by id' })
+    @ApiResponse({
+        status: 204,
+        description: 'Deleted',
+        type: DeleteByIdDto,
+    })
+    @ApiResponse({
+        status: 404,
+        description: 'Product not found',
+        type: ErrorResponseDto,
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Bad request',
+        type: ErrorResponseDto,
+    })
+    @ApiResponse({
+        status: 500,
+        description: 'Internal Server Error',
+        type: ErrorResponseDto,
+    })
     remove(@Param('id') id: string) {
         return this.productsBackService.remove(id);
     }
 
     @Post('createFakeData')
+    @ApiOperation({ summary: 'Create a fake data inside db to run tests' })
+    @ApiResponse({
+        status: 201,
+        description: 'Db seeded',
+        type: CreatedFakeProductsDataDto,
+        isArray: true,
+    })
+    @ApiResponse({
+        status: 500,
+        description: 'Internal Server Error',
+        type: ErrorResponseDto,
+    })
     createFakeData() {
         return this.productsBackService.createFakeData();
     }
 
-    @ApiResponse({
-        status: 200,
-        description: 'Get products with 30 days sales',
-        type: ProductWithSales30DaysDTO,
-        isArray: true,
-    })
+    @Post('productsWith30daysSales')
+    @HttpCode(200)
     @ApiBody({
         type: FindAllProductsBackDto,
         description: 'Find all products with 30 days sales',
@@ -101,7 +219,17 @@ export class ProductsBackController {
             },
         },
     })
-    @Post('productsWith30daysSales')
+    @ApiResponse({
+        status: 200,
+        description: 'Get products with 30 days sales',
+        type: ProductWithSales30DaysDto,
+        isArray: true,
+    })
+    @ApiResponse({
+        status: 500,
+        description: 'Internal Server Error',
+        type: ErrorResponseDto,
+    })
     productsWith30daysSales(
         @Body() findAllProductsBackDto: FindAllProductsBackDto,
     ) {
