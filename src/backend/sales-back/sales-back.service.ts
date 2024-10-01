@@ -2,14 +2,17 @@ import { SalesService } from '@api/sales/sales.service';
 import { Injectable } from '@nestjs/common';
 import {
     CreateSalesBackDto,
-    DeleteByIdDto,
     FindAllSalesBackDto,
     SalesByChannelBackDto,
-    FindAllSalesDto,
     SalesDto,
+    SalesFindAllDto,
     UpdateSalesBackDto,
-    CreatedFakeSalesDataDto,
 } from './dto/sales-back.dto';
+import {
+    DeleteByIdDto,
+    FindAllDto,
+    TotalCollectionAffectedDto,
+} from '../utils/dto/utils.dto';
 
 @Injectable()
 export class SalesBackService {
@@ -21,7 +24,7 @@ export class SalesBackService {
 
     async findAll(
         findAllSalesBackDto: FindAllSalesBackDto,
-    ): Promise<FindAllSalesDto> {
+    ): Promise<SalesFindAllDto> {
         return this.service.findAll(findAllSalesBackDto);
     }
 
@@ -29,7 +32,10 @@ export class SalesBackService {
         return this.service.findById(id);
     }
 
-    update(id: string, updateSalesBackDto: UpdateSalesBackDto): Promise<SalesDto> {
+    update(
+        id: string,
+        updateSalesBackDto: UpdateSalesBackDto,
+    ): Promise<SalesDto> {
         return this.service.updateSale(id, updateSalesBackDto);
     }
 
@@ -37,7 +43,7 @@ export class SalesBackService {
         return this.service.deleteSale(id);
     }
 
-    createFakeData(): Promise<CreatedFakeSalesDataDto> {
+    createFakeData(): Promise<TotalCollectionAffectedDto> {
         return this.service.createFakeData();
     }
 

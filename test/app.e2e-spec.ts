@@ -32,6 +32,18 @@ describe('AppController (e2e)', () => {
 
     describe('products-back', () => {
         const apiUrl = '/products-back';
+
+        it('createFakeData (POST)', async () => {
+            const req = await request(app.getHttpServer())
+                .post(`${apiUrl}/createFakeData`)
+                .expect(201);
+
+            expect(req.body).toHaveProperty('total');
+            expect(req.body.total).toBe(100);
+
+            return req;
+        });
+
         it('/products-back/findAll (POST)', async () => {
             const req = await request(app.getHttpServer())
                 .post(`${apiUrl}/findAll`)
@@ -83,7 +95,7 @@ describe('AppController (e2e)', () => {
             );
 
             expect(req.body.results).toHaveLength(10);
-            expect(req.body.total).toBe(10);
+            expect(req.body.total).toBe(100);
 
             return req;
         });
@@ -91,6 +103,53 @@ describe('AppController (e2e)', () => {
 
     describe('sales-back', () => {
         const apiUrl = '/sales-back';
+
+        it('createFakeData (POST)', async () => {
+            const req = await request(app.getHttpServer())
+                .post(`${apiUrl}/createFakeData`)
+                .expect(201);
+
+            expect(req.body).toHaveProperty('total');
+            expect(req.body.total).toBe(18000);
+            return req;
+        });
+
+        it('create (POST)', async () => {
+            const req = await request(app.getHttpServer())
+                .post(`${apiUrl}/create`)
+                .send({
+                    date: '2024-09-05T19:45:00.000Z',
+                    amount: 1500,
+                    units: 5,
+                    channel: 'FBA',
+                    product: '66fab5b8ada9f861a64fe4c9',
+                })
+                .expect(201);
+
+            expect(req.body).toHaveProperty('id');
+            expect(req.body).toHaveProperty('createdAt');
+            expect(req.body).toHaveProperty('updatedAt');
+            return req;
+        });
+
+        it('findAll (POST)', async () => {
+            const req = await request(app.getHttpServer())
+                .post(`${apiUrl}/findAll`)
+                .send({
+                    itemsPerPage: 10,
+                    page: 1,
+                    sortBy: ['channel'],
+                    sortDesc: [true],
+                    search: '',
+                    totalSalesCount: true,
+                })
+                .expect(200);
+
+            expect(req.body).toHaveProperty('results');
+            expect(req.body).toHaveProperty('total');
+            expect(req.body.results).toHaveLength(10);
+            return req;
+        });
 
         describe('salesByChannel (POST)', () => {
             it('If the date range is longer than 3 months, it will return grouped by weeks.', async () => {
@@ -104,10 +163,9 @@ describe('AppController (e2e)', () => {
                     })
                     .expect(200);
 
-                console.log(req.body.results);
-                expect(req.body).toHaveProperty('results');
-                expect(req.body.results[0].groupedBy).toBe('week');
-                expect(new Date(req.body.results[0].date)).toBeInstanceOf(Date);
+                expect(req.body).toBeInstanceOf(Array);
+                expect(req.body[0].groupedBy).toBe('week');
+                expect(new Date(req.body[0].date)).toBeInstanceOf(Date);
                 return req;
             });
 
@@ -120,10 +178,9 @@ describe('AppController (e2e)', () => {
                     })
                     .expect(200);
 
-                console.log(req.body.results);
-                expect(req.body).toHaveProperty('results');
-                expect(req.body.results[0].groupedBy).toBe('day');
-                expect(new Date(req.body.results[0].date)).toBeInstanceOf(Date);
+                expect(req.body).toBeInstanceOf(Array);
+                expect(req.body[0].groupedBy).toBe('day');
+                expect(new Date(req.body[0].date)).toBeInstanceOf(Date);
                 return req;
             });
         });

@@ -1,6 +1,6 @@
 import { Sale } from '@api/sales/sales.entity';
+import { FindAllDto } from '@backend/utils/dto/utils.dto';
 import { OmitType, PartialType } from '@nestjs/swagger';
-import { Types } from 'mongoose';
 
 export class FindAllSalesBackDto {
     page?: number;
@@ -10,21 +10,9 @@ export class FindAllSalesBackDto {
     search?: string;
     totalSalesCount?: boolean;
 }
-
-export class FindAllSalesDto {
-    sales: SalesDto[];
-    total?: number;
+export class SalesFindAllDto extends FindAllDto<SalesDto> {
+    results: SalesDto[];
 }
-
-export class DeleteByIdDto {
-    id: string;
-}
-
-export class CreatedFakeSalesDataDto {
-    total: number;
-}
-
-
 
 export class CreateSalesBackDto {
     amount: Sale['amount'];
@@ -33,7 +21,6 @@ export class CreateSalesBackDto {
     date: Sale['date'];
     product: string;
 }
-
 
 export class UpdateSalesBackDto extends PartialType(CreateSalesBackDto) {}
 

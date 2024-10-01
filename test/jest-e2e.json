@@ -1,13 +1,15 @@
 {
     "moduleFileExtensions": ["js", "json", "ts"],
-    "rootDir": ".",
+    "rootDir": "../",
     "testEnvironment": "node",
     "testRegex": ".e2e-spec.ts$",
     "transform": {
         "^.+\\.(t|j)s$": "ts-jest"
     },
     "moduleNameMapper": {
-        "@api/(.*)": "<rootDir>/../libs/api/src/$1",
-        "@api": "<rootDir>/../libs/api/src"
+        "@api/(.*)": "<rootDir>/libs/api/src/$1",
+        "@api": "<rootDir>/libs/api/src",
+        "@backend/(.*)": "<rootDir>/src/backend/$1",
+        "@backend": "<rootDir>/src/backend"
     }
 }

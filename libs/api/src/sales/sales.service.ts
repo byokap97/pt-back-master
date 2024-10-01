@@ -1,5 +1,4 @@
 import {
-    BadGatewayException,
     BadRequestException,
     Injectable,
     InternalServerErrorException,
@@ -7,27 +6,22 @@ import {
 } from '@nestjs/common';
 import { SalesChannel, SalesDocument } from './sales.entity';
 import { InjectModel } from '@nestjs/mongoose';
-import {
-    FilterQuery,
-    Model,
-    ObjectId,
-    PipelineStage,
-    SortOrder,
-    Types,
-} from 'mongoose';
-import {
-    CreateSalesBackDto,
-    DeleteByIdDto,
-    FindAllSalesBackDto,
-    SalesByChannelBackDto,
-    FindAllSalesDto,
-    SalesDto,
-    UpdateSalesBackDto,
-    SalesByChannelDto,
-    CreatedFakeSalesDataDto,
-} from 'src/backend/sales-back/dto/sales-back.dto';
+import { FilterQuery, Model, PipelineStage } from 'mongoose';
 import { ProductDocument } from '@api/products/products.entity';
 import { idValidator } from '@api/utils/validators';
+import {
+    CreateSalesBackDto,
+    FindAllSalesBackDto,
+    SalesFindAllDto,
+    SalesDto,
+    UpdateSalesBackDto,
+    SalesByChannelBackDto,
+    SalesByChannelDto,
+} from '@backend/sales-back/dto/sales-back.dto';
+import {
+    DeleteByIdDto,
+    TotalCollectionAffectedDto,
+} from '@backend/utils/dto/utils.dto';
 
 @Injectable()
 export class SalesService {
@@ -41,7 +35,7 @@ export class SalesService {
     async create(sale: CreateSalesBackDto): Promise<any> {
         idValidator(sale.product);
         try {
-            return this.model.create(sale);
+            return await this.model.create(sale);
         } catch (error) {
             throw new InternalServerErrorException(error.message);
         }
@@ -54,7 +48,7 @@ export class SalesService {
         sortBy,
         sortDesc,
         totalSalesCount,
-    }: FindAllSalesBackDto): Promise<FindAllSalesDto> {
+    }: FindAllSalesBackDto): Promise<SalesFindAllDto> {
         const query: FilterQuery<SalesDocument> = {};
 
         if (search) {
@@ -103,7 +97,7 @@ export class SalesService {
             const result = await this.model.aggregate(pipeline);
 
             return {
-                sales: result || [],
+                results: result || [],
                 total: totalSalesCount ? totalSales : undefined,
             };
         } catch (error) {
@@ -114,9 +108,9 @@ export class SalesService {
     async findById(id: string): Promise<SalesDto> {
         idValidator(id);
         try {
-            return this.model.findById(id);
+            return await this.model.findById(id);
         } catch (error) {
-            throw new InternalServerErrorException('Fallo al buscar por Id');
+            throw new InternalServerErrorException('Failure to search');
         }
     }
 
@@ -125,7 +119,6 @@ export class SalesService {
         updateSalesBackDto: UpdateSalesBackDto,
     ): Promise<any> {
         idValidator(id);
-
         try {
             const updateSale = await this.model.findByIdAndUpdate(
                 id,
@@ -134,7 +127,7 @@ export class SalesService {
             );
 
             if (!updateSale) {
-                throw new Error('Sale not updated');
+                throw new BadRequestException('Sale not updated');
             }
 
             return updateSale;
@@ -146,16 +139,20 @@ export class SalesService {
     async deleteSale(id: string): Promise<DeleteByIdDto> {
         idValidator(id);
 
-        const deletedSale = await this.model.findOneAndDelete({ _id: id });
+        try {
+            const deletedSale = await this.model.findOneAndDelete({ _id: id });
 
-        if (!deletedSale) {
-            throw new NotFoundException('Sale not deleted');
+            if (!deletedSale) {
+                throw new NotFoundException('Sale not deleted');
+            }
+
+            return { message: 'Sale deleted' };
+        } catch (error) {
+            throw new InternalServerErrorException('Failure deleting object');
         }
-
-        return { id: deletedSale.id };
     }
 
-    async createFakeData(): Promise<CreatedFakeSalesDataDto> {
+    async createFakeData(): Promise<TotalCollectionAffectedDto> {
         await this.model.deleteMany({});
         const createModels: CreateSalesBackDto[] = [];
 
@@ -166,7 +163,7 @@ export class SalesService {
         for (let d = 0; d < 90; ++d) {
             products.forEach((product) => {
                 const date = new Date(
-                    new Date(today).setDate(today.getDay() - d),
+                    new Date(today).setDate(today.getDate() - d),
                 );
                 const model: CreateSalesBackDto = {
                     units: Math.floor(Math.random() * (10 - 1 + 1) + 1),
@@ -199,6 +196,9 @@ export class SalesService {
     }: SalesByChannelBackDto): Promise<SalesByChannelDto[]> {
         const start = new Date(startDate);
         const end = new Date(endDate);
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+            throw new BadRequestException(`Is a valid date`);
+        }
         const monthsDiff =
             (end.getFullYear() - start.getFullYear()) * 12 +
             (end.getMonth() - start.getMonth());
@@ -207,9 +207,8 @@ export class SalesService {
             monthsDiff > 3
                 ? {
                       _id: {
-                          date: {
-                              $week: '$date',
-                          },
+                          year: { $year: '$date' },
+                          week: { $week: '$date' },
                           channel: '$channel',
                           saleDate: '$date',
                       },
@@ -227,8 +226,9 @@ export class SalesService {
                       },
                   };
 
-        //To collect all data of the las day
-        const endDateMidnight = new Date(new Date(end).setHours(24, 0, 0, 0));
+        const endDateMidnight = new Date(
+            new Date(end).setHours(23, 59, 59, 999),
+        );
         const match = {
             date: {
                 $gte: new Date(start),
@@ -242,7 +242,7 @@ export class SalesService {
             {
                 $group: {
                     ...groupBy,
-                    sales: { $sum: { $toDouble: '$amount' } },
+                    sales: { $sum: '$amount' },
                     units: { $sum: '$units' },
                 },
             },
@@ -261,7 +261,12 @@ export class SalesService {
                 $project: {
                     _id: 0,
                     channel: '$_id.channel',
-                    date: '$_id.saleDate',
+                    date: {
+                        $dateToString: {
+                            format: '%Y-%m-%d',
+                            date: '$_id.saleDate',
+                        },
+                    },
                     sales: 1,
                     units: 1,
                     groupedBy: 1,
@@ -272,7 +277,7 @@ export class SalesService {
             const sales = await this.model.aggregate(pipeline);
 
             if (!sales) {
-                throw new Error('Sales not found');
+                throw new NotFoundException('Sales not found');
             }
 
             return sales as SalesByChannelDto[];

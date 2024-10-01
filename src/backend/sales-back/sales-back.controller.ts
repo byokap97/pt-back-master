@@ -14,13 +14,16 @@ import {
     FindAllSalesBackDto,
     UpdateSalesBackDto,
     SalesDto,
-    FindAllSalesDto,
-    DeleteByIdDto,
     SalesByChannelBackDto,
     SalesByChannelDto,
-    CreatedFakeSalesDataDto,
+    SalesFindAllDto,
 } from './dto/sales-back.dto';
-import { ApiBody, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+    DeleteByIdDto,
+    ErrorResponseDto,
+    TotalCollectionAffectedDto,
+} from '../utils/dto/utils.dto';
 
 @ApiTags('Sales Back')
 @Controller('sales-back')
@@ -28,6 +31,7 @@ export class SalesBackController {
     constructor(readonly salesBackService: SalesBackService) {}
 
     @Post('create')
+    @ApiOperation({ summary: 'Create a new Sale' })
     @ApiBody({
         type: CreateSalesBackDto,
         examples: {
@@ -44,14 +48,26 @@ export class SalesBackController {
     })
     @ApiResponse({
         type: SalesDto,
-        description: 'Product created',
+        description: 'Sale created',
         status: 201,
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Bad Request',
+        type: ErrorResponseDto,
+    })
+    @ApiResponse({
+        status: 500,
+        description: 'Internal Server Error',
+        type: ErrorResponseDto,
     })
     create(@Body() createSalesBackDto: CreateSalesBackDto) {
         return this.salesBackService.create(createSalesBackDto);
     }
 
     @Post('findAll')
+    @HttpCode(200)
+    @ApiOperation({ summary: 'Find All Sales ordered' })
     @ApiBody({
         type: FindAllSalesBackDto,
         examples: {
@@ -68,11 +84,18 @@ export class SalesBackController {
         },
     })
     @ApiResponse({
-        type: FindAllSalesDto,
+        type: SalesFindAllDto,
         description: 'Get all Sales from db',
         status: 200,
     })
-    findAll(@Body() findAllSalesBackDto: FindAllSalesBackDto) {
+    @ApiResponse({
+        status: 500,
+        description: 'Internal Server Error',
+        type: ErrorResponseDto,
+    })
+    findAll(
+        @Body() findAllSalesBackDto: FindAllSalesBackDto,
+    ): Promise<SalesFindAllDto> {
         if (
             typeof findAllSalesBackDto.page === undefined ||
             findAllSalesBackDto.page < 1
@@ -87,15 +110,27 @@ export class SalesBackController {
     }
 
     @Get(':id')
+    @ApiOperation({ summary: 'Find a sale by id' })
     @ApiResponse({
         status: 200,
         type: SalesDto,
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Bad Request',
+        type: ErrorResponseDto,
+    })
+    @ApiResponse({
+        status: 500,
+        description: 'Internal Server Error',
+        type: ErrorResponseDto,
     })
     findOne(@Param('id') id: string) {
         return this.salesBackService.findOne(id);
     }
 
     @Patch(':id')
+    @ApiOperation({ summary: 'Update a sale by id' })
     @ApiBody({
         type: UpdateSalesBackDto,
         examples: {
@@ -112,7 +147,18 @@ export class SalesBackController {
     })
     @ApiResponse({
         status: 200,
+        description: 'Sale Updated',
         type: SalesDto,
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Bad Request',
+        type: ErrorResponseDto,
+    })
+    @ApiResponse({
+        status: 500,
+        description: 'Internal Server Error',
+        type: ErrorResponseDto,
     })
     update(
         @Param('id') id: string,
@@ -122,47 +168,54 @@ export class SalesBackController {
     }
 
     @Delete(':id')
+    @ApiOperation({ summary: 'Delete a sale by id' })
     @ApiResponse({
-        status: 200,
+        status: 204,
         description: 'Deleted',
         type: DeleteByIdDto,
     })
-    @ApiBody({
-        type: SalesDto,
-        examples: {
-            example1: {
-                value: {
-                    id: '66fab62ce54e7a26355169f3',
-                    amount: 50,
-                    units: 7,
-                    channel: 'FBA',
-                    product: '66fab5b8ada9f861a64fe4c9',
-                    date: '2024-09-01T14:31:08.495Z',
-                    createdAt: '2024-09-30T14:31:08.796Z',
-                    updatedAt: '2024-09-30T14:31:08.796Z',
-                },
-            },
-        },
+    @ApiResponse({
+        status: 404,
+        description: 'Sale not found',
+        type: ErrorResponseDto,
     })
-    deleteById(@Param('id') id: string) {
+    @ApiResponse({
+        status: 400,
+        description: 'Bad request',
+        type: ErrorResponseDto,
+    })
+    @ApiResponse({
+        status: 500,
+        description: 'Internal Server Error',
+        type: ErrorResponseDto,
+    })
+    remove(@Param('id') id: string) {
         return this.salesBackService.remove(id);
     }
 
     @Post('createFakeData')
+    @ApiOperation({ summary: 'Create a fake data inside db to run tests' })
     @ApiResponse({
         status: 201,
         description: 'Db seeded',
-        type: CreatedFakeSalesDataDto,
+        type: TotalCollectionAffectedDto,
         isArray: true,
+    })
+    @ApiResponse({
+        status: 500,
+        description: 'Internal Server Error',
+        type: ErrorResponseDto,
     })
     createFakeData() {
         return this.salesBackService.createFakeData();
     }
 
     @Post('salesByChannel')
+    @HttpCode(200)
+    @ApiOperation({ summary: 'Find all sales by channel in a period of time' })
     @ApiBody({
         type: SalesByChannelDto,
-        description: 'Find all sales by channel',
+        description: 'Send the period and the sort option',
         examples: {
             example1: {
                 value: {
@@ -175,9 +228,24 @@ export class SalesBackController {
     })
     @ApiResponse({
         status: 200,
-        description: 'Get products with 30 days sales',
+        description: 'Sales by channel',
         type: SalesByChannelBackDto,
         isArray: true,
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Bad Request',
+        type: ErrorResponseDto,
+    })
+    @ApiResponse({
+        status: 404,
+        description: 'Sales not found',
+        type: ErrorResponseDto,
+    })
+    @ApiResponse({
+        status: 500,
+        description: 'Internal Server Error',
+        type: ErrorResponseDto,
     })
     salesByChannel(
         @Body() findAllSalesByChannelBackDto: SalesByChannelBackDto,
